@@ -11,7 +11,7 @@ Anyone who trains or fine-tunes a model on third-party data has to trust that th
 
 ## What PoisonGuardAI does
 
-1. **Register** a dataset: name, version, SHA-256 content hash, provenance and the model it trains.
+1. **Register** a dataset: name, version, SHA-256 content hash (computed in the browser from the file you pick, never uploaded), provenance and the model it trains.
 2. **Submit evidence** (up to 8 items): provenance records, label audits, feature analyses, trigger tests, control tests, clean baselines and independent reproductions. Each item is marked as an OBSERVATION or an ALLEGATION. Behavioral tests carry trial and hit counts.
 3. **Assess**: the contract computes deterministic metrics (trigger rate vs control/baseline rate, differential, qualifying runs). When the evidence is rich enough, GenLayer validators also run an LLM evaluation and must reach consensus.
 4. **Read the result**: outcome (`LOW_RISK`, `ELEVATED_RISK`, `HIGH_RISK`, `INCONCLUSIVE`), score 0-100, evidence quality, findings, alternative explanations, missing tests, confidence limitations and the next verification step.
