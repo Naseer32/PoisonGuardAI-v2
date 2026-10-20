@@ -1,70 +1,63 @@
 # PoisonGuardAI
-GenLayer intelligent contract for assessing training data poisoning risks using evidence-based AI consensus.
-# PoisonGuardAI
 
-**PoisonGuardAI** is a GenLayer intelligent smart contract designed to evaluate potential training data poisoning risks in AI datasets.
+**An on-chain registry for training-data integrity, with AI-validated backdoor-risk assessments, built on GenLayer.**
 
-Training data poisoning happens when an attacker manipulates training data to influence a model's behavior. These attacks can introduce misleading patterns, hidden backdoors, or unreliable outputs.
+Live demo: https://poisonguardai-web.vercel.app/
+Contract (GenLayer Bradbury testnet): `0x0932c34aa6e664245f7C3A7D4944B24217d9F061`
 
-PoisonGuardAI explores how blockchain-based records and GenLayer's intelligent contracts can help assess and document potential data poisoning risks.
+## The problem
 
-## Problem
+Anyone who trains or fine-tunes a model on third-party data has to trust that the data was not tampered with. Poisoned datasets can plant backdoors: the model behaves normally until a trigger appears. Today, claims like "this dataset was audited" live in blog posts and PDFs. Nobody can check what was claimed, when, or whether the claim was tested.
 
-AI models depend on the quality and integrity of their training data.
+## What PoisonGuardAI does
 
-Malicious or corrupted data can affect model behavior, reduce reliability, and create hidden vulnerabilities. Identifying suspicious data and recording assessment results can help improve transparency.
+1. **Register** a dataset: name, version, SHA-256 content hash, provenance and the model it trains.
+2. **Submit evidence** (up to 8 items): provenance records, label audits, feature analyses, trigger tests, control tests, clean baselines and independent reproductions. Each item is marked as an OBSERVATION or an ALLEGATION. Behavioral tests carry trial and hit counts.
+3. **Assess**: the contract computes deterministic metrics (trigger rate vs control/baseline rate, differential, qualifying runs). When the evidence is rich enough, GenLayer validators also run an LLM evaluation and must reach consensus.
+4. **Read the result**: outcome (`LOW_RISK`, `ELEVATED_RISK`, `HIGH_RISK`, `INCONCLUSIVE`), score 0-100, evidence quality, findings, alternative explanations, missing tests, confidence limitations and the next verification step.
 
-## Proposed Solution
+Contract rules constrain the LLM: score bands per outcome, evidence-quality caps, and an `INCONCLUSIVE` result when the evidence is too thin. A result is marked **stale** if evidence changed after the last assessment. Status changes follow a fixed transition graph (REGISTERED, EVIDENCE_SUBMITTED, ASSESSED, UNDER_REVIEW, REJECTED, CLOSED).
 
-PoisonGuardAI provides an on-chain framework for recording datasets, submitting evidence, and evaluating potential poisoning risks.
+## Contract methods
 
-Depending on the contract's implemented functions, its assessment process can use intelligent evaluation to help classify a dataset's risk.
+| Method | Type |
+|---|---|
+| `register_dataset` | write |
+| `submit_evidence` | write |
+| `assess_dataset` | write |
+| `update_assessment_status` | write |
+| `get_assessment` | view |
+| `get_risk_summary` | view |
+| `get_dataset_count` | view |
 
-## Key Objectives
+## How to use the web app
 
-- Record dataset information on-chain.
-- Associate evidence with dataset assessments.
-- Evaluate potential training data poisoning risks.
-- Record assessment results for transparency.
-- Explore intelligent contract-based AI security workflows.
+1. Open the demo on any device. Reading works without a wallet.
+2. **Lookup**: enter an assessment id and press *Risk summary* or *Full assessment*.
+3. To write, open the page in a wallet browser, press **Connect**, then use the Register, Evidence, Assess and Status tabs.
+4. The app shows the transaction hash, waits for `ACCEPTED`, and reads the result back from the chain. LLM assessments can take several minutes; if the wait times out, check Lookup again, because the transaction keeps running on the network.
 
-## Technology
+## Honest limitations
 
-- GenLayer intelligent contracts
-- Python
-- GenLayer's intelligent execution and consensus mechanisms
+- Evidence is **submitter-supplied and unverified**. The contract does not run or scan any model. It records claims, scores how well they are supported, and says what is missing.
+- The score is a structured judgement of the evidence, not a safety certificate. A matching hash proves identity of the content, not safety.
+- The sample assessments in the live deployment use synthetic test data.
 
-## Repository Structure
+## Repository structure
 
 ```text
-PoisonGuardAI/
-├── contracts/
-│   └── poison_guard_ai.py
-├── tests/
-│   ├── genlayer_stub.py
-│   ├── helpers.py
-│   ├── test_deterministic.py
-│   ├── test_intelligent.py
-│   └── gltest_studio/
-│       └── test_poison_guard_studio.py
-├── README.md
-├── README_TESTING.md
-└── TESTING.md
-Contract
-The main intelligent contract is located at:
-contracts/poison_guard_ai.py
-Testing
-Test files are organized under the tests/ directory.
-For testing instructions and details, see:
-README_TESTING.md
-TESTING.md
-Tests should be run in an environment that supports their required dependencies. Passing local unit tests does not by itself prove that the contract works correctly on a GenLayer testnet.
-Security Considerations
-PoisonGuardAI is an experimental project exploring AI data integrity and blockchain-based risk assessment.
-An assessment result should not be treated as definitive proof that a dataset is safe or malicious. Intelligent evaluations can be uncertain and may produce incorrect results.
-Do not use this project as the sole security control for production AI systems.
-Project Status
-Experimental development.
-Deployment status, test results, and supported features should be documented only after they have been verified.
-Disclaimer
-PoisonGuardAI is a research and development project. It does not guarantee the detection of every training data poisoning attack or AI model vulnerability.
+contracts/poison_guard_ai.py   Intelligent contract (Python)
+tests/                         Direct Mode and Studio test suites
+web/                           Single-file frontend (genlayer-js), deployed on Vercel
+README_TESTING.md              How to run the tests
+
+Tests
+The Direct Mode suite (tests/direct, 36 tests) passes on the compact contract. See README_TESTING.md for how to run it.
+Run the frontend locally
+
+cd web
+python -m http.server 8000
+
+Open http://localhost:8000. Wallet connection needs an https origin or a wallet browser that allows localhost.
+Built with
+GenLayer intelligent contracts (Python), genlayer-js, plain HTML, CSS and JavaScript.
