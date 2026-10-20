@@ -156,6 +156,24 @@ for(const [k,F] of Object.entries(FORMS)){
   return lb+`<input name="${n}" placeholder="${esc(ph||"")}" autocapitalize="off" autocorrect="off">`;
  }).join("")+`<button class="btn pri">Send transaction</button>`;
  const btn=p.querySelector("button");
+ if(k==="register"){
+  const hi=p.querySelector('[name="content_hash"]');
+  const box=document.createElement("div");
+  box.innerHTML='<label>Or pick the dataset file to compute its SHA-256</label><input type="file" id="hf"><p class="sub" id="hs"></p>';
+  hi.after(box);
+  box.querySelector("#hf").onchange=async e=>{
+   const f=e.target.files[0],note=box.querySelector("#hs");
+   if(!f)return;
+   if(f.size>200*1024*1024){note.textContent="File is too large for in-browser hashing (max 200 MB). Compute the hash elsewhere and paste it.";return}
+   try{
+    note.textContent="Computing hash…";
+    const buf=await crypto.subtle.digest("SHA-256",await f.arrayBuffer());
+    const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    hi.value=hex;
+    note.textContent="SHA-256 computed on this device; the file is not uploaded. "+f.name;
+   }catch(err){note.textContent="Could not hash this file: "+((err&&err.message)||err)}
+  };
+ }
  btn.onclick=async()=>{try{
   if(!client)return st("Client not ready.","err");
   if(!account)return st("Connect a wallet first.","err");
