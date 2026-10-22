@@ -70,7 +70,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#0d1326;padding:10px;bo
 <h4>Contract</h4><div class="mono" id="addr"></div>
 <h4>Wallet</h4><div class="mono" id="wal">Not connected</div></div>
 <div class="st" id="st"></div>
-<nav id="nav"><button data-t="lookup" class="on">Lookup</button><button data-t="register">Register</button><button data-t="evidence">Evidence</button><button data-t="assess">Assess</button><button data-t="status">Status</button></nav>
+<nav id="nav"><button data-t="lookup" class="on">Lookup</button><button data-t="register">Register</button><button data-t="evidence">Evidence</button><button data-t="assess">Assess</button><button data-t="status">Status</button><button data-t="verify">Verify source</button></nav>
 <section class="card panel" id="p-lookup">
  <h3>Look up an assessment</h3><p class="sub">Read-only. No wallet needed.</p>
  <label>assessment id</label><input id="lid" placeholder="poison-test-001" autocapitalize="off" autocorrect="off">
@@ -187,6 +187,48 @@ for(const [k,F] of Object.entries(FORMS)){
  }catch(e){fail(e)}finally{btn.disabled=false}};
  $("#forms").appendChild(p);
 }
+
+const VER="0x963E3B26cd0f96c7BDEc1213041A4EF71Fe1792d";
+const schain=chains.studionet;
+const vp=document.createElement("section");vp.className="card panel";vp.id="p-verify";vp.hidden=true;
+vp.innerHTML='<h3>Verify source</h3><p class="sub">Checks that a public dataset page (huggingface.co, github.com or zenodo.org) shows the registered name and SHA-256. Runs on GenLayer Studionet, verifier contract '+VER+'. Reading needs no wallet; sending needs a wallet on Studionet.</p>'
++'<label>assessment id</label><input name="vid" autocapitalize="off" autocorrect="off">'
++'<label>source url</label><input name="vurl" placeholder="https://huggingface.co/datasets/..." autocapitalize="off" autocorrect="off">'
++'<label>dataset name as shown on the page</label><input name="vname" autocapitalize="off" autocorrect="off">'
++'<label>sha256</label><input name="vhash" placeholder="64 hex characters" autocapitalize="off" autocorrect="off">'
++'<button class="btn pri" id="vsend">Verify (send transaction)</button>'
++'<div class="row"><button class="btn" id="vread">Read result</button></div><div id="vout"></div>';
+$("#forms").appendChild(vp);
+const vq=n=>vp.querySelector('[name="'+n+'"]').value.trim();
+const vcol={MATCH:"ok",PARTIAL:"warn",MISMATCH:"bad"};
+function vview(r){const d=norm(r),v=d.verdict||"NOT_VERIFIED";
+ let h='<div class="top" style="margin-top:14px"><span class="badge '+(vcol[v]||"inc")+'">'+esc(nice(v))+'</span></div>';
+ if(d.source_url)h+='<h4>Source</h4><div class="mono">'+esc(d.source_url)+'</div><div class="grid" style="margin-top:8px">'
+  +[["page reachable",d.reachable],["name found",d.name_found],["hash found",d.hash_found]].map(([k,x])=>'<div class="kv"><span>'+k+'</span><b>'+(x?"yes":"no")+'</b></div>').join("")+'</div>';
+ return h+'<details><summary>Raw data</summary><pre>'+esc(JSON.stringify(d,null,2))+'</pre></details>'}
+const sread=()=>sdk.createClient({chain:schain});
+$("#vread").onclick=async()=>{try{
+ if(!schain)return st("studionet is not exported by this SDK version. Exports: "+Object.keys(chains).join(", "),"err");
+ const id=vq("vid");if(!id)return st("Enter an assessment id.","err");
+ st("Reading from Studionet…");
+ const r=await sread().readContract({address:VER,functionName:"get_verification",args:[id]});
+ st("");$("#vout").innerHTML=vview(r);
+}catch(e){fail(e)}};
+$("#vsend").onclick=async()=>{const btn=$("#vsend");try{
+ if(!schain)return st("studionet is not exported by this SDK version. Exports: "+Object.keys(chains).join(", "),"err");
+ if(!account)return st("Connect a wallet first (it must be on Studionet).","err");
+ const args=[vq("vid"),vq("vurl"),vq("vname"),vq("vhash")];
+ if(args.some(x=>!x))return st("Fill in all four fields.","err");
+ const c=sdk.createClient({chain:schain,account});
+ try{await c.connect("studionet")}catch(e){}
+ btn.disabled=true;st("Sending transaction…");
+ const hash=await c.writeContract({address:VER,functionName:"verify_source",args,value:0n});
+ st("Sent. Hash:\n"+hash+"\nWaiting for the network to accept it…");
+ try{await c.waitForTransactionReceipt({hash,status:"ACCEPTED",retries:120,interval:5000})}
+ catch(e){if(/timed out/i.test(String((e&&e.message)||e)))return st("Still processing on the network.\nHash:\n"+hash+"\nPress Read result in a few minutes.");throw e}
+ st("Accepted.\n"+hash,"ok");
+ $("#vout").innerHTML=vview(await c.readContract({address:VER,functionName:"get_verification",args:[args[0]]}));
+}catch(e){fail(e)}finally{btn.disabled=false}};
 $("#nav").onclick=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;
  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
  document.querySelectorAll(".panel").forEach(p=>p.hidden=p.id!=="p-"+t)};
