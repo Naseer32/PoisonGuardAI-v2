@@ -37,6 +37,17 @@ Contract rules constrain the LLM: score bands per outcome, evidence-quality caps
 3. To write, open the page in a wallet browser, press **Connect**, then use the Register, Evidence, Assess and Status tabs.
 4. The app shows the transaction hash, waits for `ACCEPTED`, and reads the result back from the chain. LLM assessments can take several minutes; if the wait times out, check Lookup again, because the transaction keeps running on the network.
 
+## Source verification (Studionet)
+
+`contracts/source_verifier.py` is a second, small Intelligent Contract. It fetches a public dataset page (`huggingface.co`, `github.com` or `zenodo.org` only) with `gl.nondet.web.render` and checks whether the registered dataset name and SHA-256 appear on it. Verdicts: `MATCH`, `PARTIAL`, `MISMATCH`, `UNREACHABLE`. The checks are deterministic, so validators can agree on them.
+
+- Deployed on GenLayer **Studionet**: `0x963E3B26cd0f96c7BDEc1213041A4EF71Fe1792d`
+- Live test: `verify_source` on a public GitHub page was ACCEPTED and returned `PARTIAL` (name found, a fake hash not found), as expected.
+- A second deployment on Bradbury (`0x1D4f9dCaA642E84B555d8568151e9Fd60CcfE7bE`) returned `LEADER_TIMEOUT` on web fetches in our tests, so the web app uses the Studionet one.
+- In the web app: **Verify source** tab. Reading works without a wallet; sending needs a wallet on Studionet.
+- It is a separate contract because the main contract is close to Bradbury's ~20KB size limit.
+- It checks that a page matches the registered claim. It does not prove the dataset is safe.
+
 ## Honest limitations
 
 - Evidence is **submitter-supplied and unverified**. The contract does not run or scan any model. It records claims, scores how well they are supported, and says what is missing.
